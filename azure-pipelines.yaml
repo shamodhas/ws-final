@@ -1,0 +1,56 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.x'
+    addToPath: true
+
+- script: |
+    pip install -r user-service/requirements.txt
+    pip install -r account-service/requirements.txt
+    pip install -r trade-service/requirements.txt
+  displayName: 'Install dependencies'
+
+- script: |
+    docker build -t user-service user-service/
+    docker build -t account-service account-service/
+    docker build -t trade-service trade-service/
+  displayName: 'Build Docker images'
+
+- task: Docker@2
+  inputs:
+    containerRegistry: 'myDockerRegistry'
+    repository: 'user-service'
+    command: 'push'
+    tags: 'latest'
+  displayName: 'Push user-service Docker image'
+
+- task: Docker@2
+  inputs:
+    containerRegistry: 'myDockerRegistry'
+    repository: 'account-service'
+    command: 'push'
+    tags: 'latest'
+  displayName: 'Push account-service Docker image'
+
+- task: Docker@2
+  inputs:
+    containerRegistry: 'myDockerRegistry'
+    repository: 'trade-service'
+    command: 'push'
+    tags: 'latest'
+  displayName: 'Push trade-service Docker image'
+
+- task: AzureKubernetesService@1
+  inputs:
+    azureSubscription: 'myAzureSubscription'
+    azureResourceGroup: 'myResourceGroup'
+    kubernetesCluster: 'myKubernetesCluster'
+    command: 'apply'
+    arguments: '-f k8s/deployment.yaml'
+  displayName: 'Deploy to Azure Kubernetes Service'
