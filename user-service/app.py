@@ -1,40 +1,32 @@
-from flask import Flask, jsonify, request
+from flask import Flask, request, jsonify
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from model.user import User
-from service.user_service import UserService
+from model import User, Base
+from service import UserService
 
 app = Flask(__name__)
+DATABASE_URL = "mssql+pyodbc://username:password@server.database.windows.net/dbname?driver=ODBC+Driver+17+for+SQL+Server"
 
-# Configure the database
-DATABASE_URL = 'postgresql://user:password@localhost/user_db'
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base.metadata.create_all(bind=engine)
 
-@app.route('/register', methods=['POST'])
-def register_user():
-    data = request.json
-    try:
-        db = SessionLocal()
-        user = UserService.create_user(email=data['email'], password=data['password'], db=db)
-        return jsonify({"user_id": user.id, "email": user.email}), 201
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
-    finally:
-        db.close()
+@app.route('/user', methods=['POST'])
+def create_user():
+    db = SessionLocal()
+    user_name = request.json.get('user_name')
+    user = UserService.create_user(user_name, db)
+    db.close()
+    return jsonify(user), 201
 
-@app.route('/login', methods=['POST'])
-def login_user():
-    data = request.json
-    try:
-        db = SessionLocal()
-        user = UserService.authenticate_user(email=data['email'], password=data['password'], db=db)
-        if user:
-            return jsonify({"user_id": user.id, "email": user.email})
-        else:
-            return jsonify({"error": "Invalid credentials"}), 401
-    finally:
-        db.close()
+@app.route('/user/<int:user_id>', methods=['GET'])
+def get_user(user_id):
+    db = SessionLocal()
+    user = UserService.get_user(user_id, db)
+    db.close()
+    if user:
+        return jsonify(user), 200
+    return jsonify({"error": "User not found"}), 404
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001)
+    app.run(host='0.0.0.0', port=5000)
