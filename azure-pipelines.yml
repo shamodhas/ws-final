@@ -1,0 +1,39 @@
+trigger:
+  - main
+
+jobs:
+  - job: Build_and_Deploy
+    pool:
+      vmImage: "ubuntu-latest"
+    steps:
+      - task: UsePythonVersion@0
+        inputs:
+          versionSpec: "3.x"
+          addToPath: true
+
+      - script: |
+          cd account-service
+          pip install -r requirements.txt
+          docker build -t mydockerhub/account-service:latest .
+          docker push mydockerhub/account-service:latest
+        displayName: "Build and Push Account Service Docker Image"
+
+      - script: |
+          cd trade-service
+          pip install -r requirements.txt
+          docker build -t mydockerhub/trade-service:latest .
+          docker push mydockerhub/trade-service:latest
+        displayName: "Build and Push Trade Service Docker Image"
+
+      - script: |
+          cd user-service
+          pip install -r requirements.txt
+          docker build -t mydockerhub/user-service:latest .
+          docker push mydockerhub/user-service:latest
+        displayName: "Build and Push User Service Docker Image"
+
+      - script: |
+          kubectl apply -f account-service/k8s/
+          kubectl apply -f trade-service/k8s/
+          kubectl apply -f user-service/k8s/
+        displayName: "Deploy to Kubernetes"
