@@ -1,32 +1,52 @@
-from flask import Flask, request, jsonify
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from model import User, Base
-from service import UserService
+from flask import Flask, jsonify, request, abort
 
 app = Flask(__name__)
-DATABASE_URL = "mssql+pyodbc://username:password@server.database.windows.net/dbname?driver=ODBC+Driver+17+for+SQL+Server"
 
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base.metadata.create_all(bind=engine)
+# Sample data stored in an array
+users = [
+    {"user_id": "1", "name": "Alice", "email": "alice@example.com"},
+    {"user_id": "2", "name": "Bob", "email": "bob@example.com"}
+]
 
-@app.route('/user', methods=['POST'])
-def create_user():
-    db = SessionLocal()
-    user_name = request.json.get('user_name')
-    user = UserService.create_user(user_name, db)
-    db.close()
-    return jsonify(user), 201
+@app.route("/user", methods=["GET"])
+def get_users():
+    return jsonify(users)
 
-@app.route('/user/<int:user_id>', methods=['GET'])
+@app.route("/user/<user_id>", methods=["GET"])
 def get_user(user_id):
-    db = SessionLocal()
-    user = UserService.get_user(user_id, db)
-    db.close()
+    user = next((usr for usr in users if usr["user_id"] == user_id), None)
     if user:
-        return jsonify(user), 200
+        return jsonify(user)
     return jsonify({"error": "User not found"}), 404
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+@app.route("/user", methods=["POST"])
+def create_user():
+    if not request.json or 'user_id' not in request.json or 'name' not in request.json or 'email' not in request.json:
+        abort(400)
+    new_user = {
+        "user_id": request.json['user_id'],
+        "name": request.json['name'],
+        "email": request.json['email']
+    }
+    users.append(new_user)
+    return jsonify(new_user), 201
+
+@app.route("/user/<user_id>", methods=["PUT"])
+def update_user(user_id):
+    user = next((usr for usr in users if usr["user_id"] == user_id), None)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    if not request.json or 'name' not in request.json or 'email' not in request.json:
+        abort(400)
+    user['name'] = request.json['name']
+    user['email'] = request.json['email']
+    return jsonify(user)
+
+@app.route("/user/<user_id>", methods=["DELETE"])
+def delete_user(user_id):
+    global users
+    users = [usr for usr in users if usr["user_id"] != user_id]
+    return jsonify({"result": "User deleted"}), 200
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5003)

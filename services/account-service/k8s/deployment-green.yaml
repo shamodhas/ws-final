@@ -1,22 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: account-service
+  name: account-service-green
+  labels:
+    app: account-service
+    version: green
 spec:
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
       app: account-service
+      version: green
   template:
     metadata:
       labels:
         app: account-service
+        version: green
     spec:
       containers:
         - name: account-service
-          image: mydockerhub/account-service:latest
+          image: account-service:latest
           ports:
-            - containerPort: 5000
-          env:
-            - name: DATABASE_URL
-              value: "mssql+pyodbc://username:password@server.database.windows.net/dbname?driver=ODBC+Driver+17+for+SQL+Server"
+            - containerPort: 5001
